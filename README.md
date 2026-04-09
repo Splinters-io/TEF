@@ -37,6 +37,16 @@ evidence:
     then:
       - response delayed by approximately 5 seconds
       - status code 200
+    location:
+      type: endpoint
+      value: "GET /api/users?sort="
+      context: UserPortal REST API, behind Cloudflare
+    reproduction:
+      commands:
+        - "time curl -s -H 'Cookie: session=eyJ...' 'https://portal.acme-corp.com/api/users?sort=id;SELECT+pg_sleep(5)--'"
+      code: |
+        // src/handlers/users.ts:47
+        const query = `SELECT * FROM users ORDER BY ${sortParam}`;
 ```
 
 **defect** — structured metadata. Product, vendor, target type,
@@ -48,11 +58,19 @@ pattern).
 - **given** — preconditions
 - **when** — the trigger
 - **then** — the observed outcome (must be verifiable)
+- **location** — where the defect lives (type, value, optional context)
+- **reproduction** — raw proof artefacts (commands, code, output, logs)
 
 ## Target Types
 
-`web` · `api` · `mobile` · `desktop` · `embedded` · `network` ·
-`cloud` · `ot` · `supply_chain`
+`web` · `api` · `mobile_android` · `mobile_ios` · `desktop` ·
+`server` · `os` · `embedded` · `network` · `cloud` · `ot` ·
+`ai_ml` · `supply_chain`
+
+Android and iOS are separate — different security models.
+`desktop` is the application, `os` is the operating system,
+`server` is server software (httpd, PostgreSQL, BIND).
+`mobile` accepted as shorthand when the defect applies to both.
 
 ## Presence Patterns
 
@@ -66,26 +84,48 @@ How the defect manifests. Determines what evidence is expected.
 | `behavioural_stateful` | Requires specific app state or multi-step setup |
 | `behavioural_timing` | Depends on timing or concurrency |
 | `environmental` | Only in specific environments or hardware |
+| `probabilistic` | Same input, different outcomes — stochastic or inference |
 | `design_flaw` | The design itself is insecure |
 | `supply_chain` | Inherited from a third-party dependency |
+
+## Defect Classes
+
+TEF covers 19 defect classes across two categories:
+
+**Code defects:** Injection, Authentication, Cryptographic,
+Data Exposure, Access Control, Deserialization, File Handling,
+SSRF, Memory Safety, Business Logic, Supply Chain,
+AI & Machine Learning
+
+**Configuration:** TLS/Transport, Security Headers,
+Secrets/Credentials, Permissions, Logging, DNS/Email, Defaults
+
+The AI & Machine Learning class covers prompt injection
+(direct and indirect), training data poisoning, model
+extraction, PII leakage from models, insecure output
+handling, excessive agent permissions, RAG corpus
+manipulation, adversarial inputs, and model supply chain
+compromise. Maps to OWASP Top 10 for LLM Applications
+and MITRE ATLAS.
 
 ## Specification
 
 The full specification is in [TEF-SPEC.md](TEF-SPEC.md), including:
 
-- Complete YAML schema (required and optional fields)
+- Complete YAML schema with location and reproduction blocks
 - All 8 presence patterns with definitions
-- Evidence structure guidance
-- Completeness criteria
-- Conformance requirements
+- Evidence structure guidance with verifiable vs non-verifiable examples
+- Location types per target (endpoint, file, function, offset, port, config, register)
+- Reproduction artefacts (commands, code, request/response, logs, output, files)
+- Completeness and conformance criteria
 - 8 worked examples across different targets and patterns
 
 ## Live Reference
 
 - [Template library](https://theclearingroom.io/templates) —
-  25+ exemplary TEF submissions
+  73 exemplary TEF submissions across all defect classes
 - [Template builder](https://theclearingroom.io/templates/builder) —
-  interactive TEF construction with live preview
+  interactive TEF construction with progressive filtering and live preview
 - [When to use what](https://theclearingroom.io/templates/guide) —
   plain-language guide to each presence pattern
 
